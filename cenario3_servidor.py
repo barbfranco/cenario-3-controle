@@ -12,11 +12,13 @@ lock = threading.Lock()
 
 
 def enviar_json(conexao, dados):
+    # Envia dados em JSON para um cliente conectado.
     mensagem = json.dumps(dados) + "\n"
     conexao.sendall(mensagem.encode("utf-8"))
 
 
 def enviar_log(texto):
+    # Mostra uma mensagem no servidor e envia essa mensagem aos paineis.
     print(texto)
     pacote = {"tipo": "log", "mensagem": texto}
 
@@ -33,6 +35,7 @@ def enviar_log(texto):
 
 
 def encaminhar_para_dispositivo(dispositivo_id, comando):
+    # Procura o dispositivo e repassa o comando recebido do painel.
     with lock:
         dispositivo = dispositivos.get(dispositivo_id)
 
@@ -48,6 +51,7 @@ def encaminhar_para_dispositivo(dispositivo_id, comando):
 
 
 def tratar_dispositivo(conexao, endereco, primeira_msg):
+    # Mantem a comunicacao com um dispositivo conectado.
     dispositivo_id = primeira_msg.get("id", f"{endereco[0]}:{endereco[1]}")
 
     with lock:
@@ -63,7 +67,8 @@ def tratar_dispositivo(conexao, endereco, primeira_msg):
             if dados.get("tipo") == "resposta":
                 comando = dados.get("comando", "")
                 estado = dados.get("estado", "")
-                enviar_log(f"[RESPOSTA] {dispositivo_id} respondeu '{comando}': estado atual = {estado}.")
+                mensagem = dados.get("mensagem", "")
+                enviar_log(f"[RESPOSTA] {dispositivo_id} respondeu '{comando}': {mensagem} Estado atual = {estado}.")
 
     except (ConnectionError, json.JSONDecodeError, OSError):
         enviar_log(f"[DESCONECTADO] Dispositivo {dispositivo_id}.")
@@ -75,12 +80,14 @@ def tratar_dispositivo(conexao, endereco, primeira_msg):
 
 
 def tratar_painel(conexao, endereco):
+    # Recebe comandos do painel e decide o que fazer com cada um.
     with lock:
         paineis.append(conexao)
 
     enviar_log(f"[CONECTADO] Painel em {endereco}.")
     enviar_json(conexao, {"tipo": "log", "mensagem": "Painel conectado ao servidor."})
     enviar_json(conexao, {"tipo": "log", "mensagem": "Use: ligar <id>, desligar <id>, status <id> ou lista"})
+    enviar_json(conexao, {"tipo": "log", "mensagem": "Atalhos no painel: lampada-a, lampada-b, motor-g, motor-p"})
 
     try:
         arquivo = conexao.makefile("r", encoding="utf-8")
@@ -116,6 +123,7 @@ def tratar_painel(conexao, endereco):
 
 
 def tratar_cliente(conexao, endereco):
+    # Identifica se o cliente conectado e painel ou dispositivo.
     try:
         arquivo = conexao.makefile("r", encoding="utf-8")
         primeira_linha = arquivo.readline()
@@ -139,6 +147,7 @@ def tratar_cliente(conexao, endereco):
 
 
 def main():
+    # Inicia o servidor e cria uma thread para cada cliente conectado.
     servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     servidor.bind((HOST, PORTA))

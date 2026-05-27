@@ -5,13 +5,22 @@ import json
 HOST = "127.0.0.1"
 PORTA = 5050
 
+APELIDOS_DISPOSITIVOS = {
+    "lampada-a": "lampada-amarela",
+    "lampada-b": "lampada-branca",
+    "motor-g": "motor-grande",
+    "motor-p": "motor-pequeno",
+}
+
 
 def enviar_json(conexao, dados):
+    # Envia um comando ou identificacao em formato JSON.
     mensagem = json.dumps(dados) + "\n"
     conexao.sendall(mensagem.encode("utf-8"))
 
 
 def receber_logs(conexao):
+    # Recebe mensagens do servidor e mostra no painel.
     try:
         arquivo = conexao.makefile("r", encoding="utf-8")
         for linha in arquivo:
@@ -22,19 +31,33 @@ def receber_logs(conexao):
         print("Conexao com o servidor encerrada.")
 
 
+def ajustar_comando(comando):
+    # Troca os apelidos curtos pelos nomes completos antes de enviar ao servidor.
+    partes = comando.strip().lower().split()
+    if len(partes) == 2:
+        partes[1] = APELIDOS_DISPOSITIVOS.get(partes[1], partes[1])
+        return " ".join(partes)
+    return comando.strip().lower()
+
+
 def main():
+    # Conecta o painel ao servidor.
     painel = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     painel.connect((HOST, PORTA))
     enviar_json(painel, {"tipo": "painel"})
 
+    # Cria uma thread para receber logs enquanto o usuario digita comandos.
     thread = threading.Thread(target=receber_logs, args=(painel,))
     thread.daemon = True
     thread.start()
 
     print("Painel de controle remoto")
+    print("Dispositivos: lampada-amarela, lampada-branca, motor-grande, motor-pequeno")
+    print("Atalhos: lampada-a, lampada-b, motor-g, motor-p")
     print("Comandos: lista | ligar <id> | desligar <id> | status <id> | sair")
 
     try:
+        # Le comandos digitados pelo usuario e envia para o servidor.
         while True:
             comando = input("> ").strip()
 
@@ -42,7 +65,7 @@ def main():
                 break
 
             if comando:
-                enviar_json(painel, {"tipo": "painel", "comando": comando})
+                enviar_json(painel, {"tipo": "painel", "comando": ajustar_comando(comando)})
 
     except (KeyboardInterrupt, EOFError):
         pass
