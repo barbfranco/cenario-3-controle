@@ -1,8 +1,8 @@
-Cenario 3 - Controle remoto de dispositivos
+Cenario 3 - Controle remoto de aparelhos
 
 Arquivos:
-- cenario3_servidor.py: servidor TCP que recebe dispositivos e painel.
-- cenario3_dispositivo.py: cliente que simula uma lampada, motor ou outro dispositivo.
+- cenario3_servidor.py: servidor TCP que recebe aparelhos e painel.
+- cenario3_dispositivo.py: cliente que simula Alexa, cafeteira ou robo aspirador.
 - cenario3_painel.py: cliente especial que envia comandos e mostra os logs.
 
 Como executar:
@@ -11,35 +11,31 @@ Como executar:
    python cenario3_servidor.py
 
 2. Abra outro terminal e rode um dispositivo:
-   python cenario3_dispositivo.py lampada-amarela
+   python cenario3_dispositivo.py alexa
 
-3. Abra outros terminais para os demais dispositivos:
-   python cenario3_dispositivo.py lampada-branca
-   python cenario3_dispositivo.py motor-grande
-   python cenario3_dispositivo.py motor-pequeno
+3. Abra outros terminais para os demais aparelhos:
+   python cenario3_dispositivo.py cafeteira
+   python cenario3_dispositivo.py aspirador
 
 4. Abra outro terminal e rode o painel:
    python cenario3_painel.py
 
 Comandos no painel:
 - lista
-- ligar lampada-amarela
-- desligar lampada-amarela
-- status lampada-branca
-- ligar motor-grande
-- status motor-pequeno
+- ligar alexa
+- desligar alexa
+- status cafeteira
+- ligar aspirador
+- status aspirador
 - sair
 
-Atalhos aceitos no painel:
-- lampada-a = lampada-amarela
-- lampada-b = lampada-branca
-- motor-g = motor-grande
-- motor-p = motor-pequeno
+Aparelhos aceitos:
+- alexa 🔊
+- cafeteira ☕
+- aspirador 🤖
 
-Tambem e possivel usar os atalhos ao iniciar um dispositivo:
-- python cenario3_dispositivo.py lampada-a
-- python cenario3_dispositivo.py motor-g
+Ao usar o comando "lista", o painel mostra o status de todos os aparelhos conectados.
 
-O painel mostra os comandos enviados e as respostas recebidas dos dispositivos.
-Se um dispositivo ja estiver ligado e receber "ligar", ele avisa que ja esta ligado.
+O painel mostra os comandos enviados e as respostas recebidas dos aparelhos.
+Se um aparelho ja estiver ligado e receber "ligar", ele avisa que ja esta ligado.
 Se ja estiver desligado e receber "desligar", ele avisa que ja esta desligado.

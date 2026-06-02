@@ -5,13 +5,6 @@ import json
 HOST = "127.0.0.1"
 PORTA = 5050
 
-APELIDOS_DISPOSITIVOS = {
-    "lampada-a": "lampada-amarela",
-    "lampada-b": "lampada-branca",
-    "motor-g": "motor-grande",
-    "motor-p": "motor-pequeno",
-}
-
 
 def enviar_json(conexao, dados):
     # Envia um comando ou identificacao em formato JSON.
@@ -32,10 +25,9 @@ def receber_logs(conexao):
 
 
 def ajustar_comando(comando):
-    # Troca os apelidos curtos pelos nomes completos antes de enviar ao servidor.
+    # Padroniza o comando digitado antes de enviar ao servidor.
     partes = comando.strip().lower().split()
     if len(partes) == 2:
-        partes[1] = APELIDOS_DISPOSITIVOS.get(partes[1], partes[1])
         return " ".join(partes)
     return comando.strip().lower()
 
@@ -52,8 +44,7 @@ def main():
     thread.start()
 
     print("Painel de controle remoto")
-    print("Dispositivos: lampada-amarela, lampada-branca, motor-grande, motor-pequeno")
-    print("Atalhos: lampada-a, lampada-b, motor-g, motor-p")
+    print("Aparelhos: alexa 🔊 | cafeteira ☕ | aspirador 🤖")
     print("Comandos: lista | ligar <id> | desligar <id> | status <id> | sair")
 
     try:

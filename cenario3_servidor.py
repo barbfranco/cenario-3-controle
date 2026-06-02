@@ -10,6 +10,8 @@ dispositivos = {}
 paineis = []
 lock = threading.Lock()
 
+APARELHOS_VALIDOS = ("alexa", "cafeteira", "aspirador")
+
 
 def enviar_json(conexao, dados):
     # Envia dados em JSON para um cliente conectado.
@@ -34,6 +36,30 @@ def enviar_log(texto):
                     paineis.remove(painel)
 
 
+def montar_lista_status():
+    # Monta o bloco com o status de todos os aparelhos conectados.
+    linhas = [
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "STATUS DE TODOS OS DISPOSITIVOS",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    ]
+
+    with lock:
+        aparelhos_conectados = {
+            dispositivo_id: dados.get("status_formatado", "status nao informado")
+            for dispositivo_id, dados in dispositivos.items()
+        }
+
+    for aparelho in APARELHOS_VALIDOS:
+        if aparelho in aparelhos_conectados:
+            linhas.append(aparelhos_conectados[aparelho])
+
+    if len(linhas) == 3:
+        linhas.append("Nenhum dispositivo conectado.")
+
+    return "\n".join(linhas)
+
+
 def encaminhar_para_dispositivo(dispositivo_id, comando):
     # Procura o dispositivo e repassa o comando recebido do painel.
     with lock:
@@ -54,8 +80,18 @@ def tratar_dispositivo(conexao, endereco, primeira_msg):
     # Mantem a comunicacao com um dispositivo conectado.
     dispositivo_id = primeira_msg.get("id", f"{endereco[0]}:{endereco[1]}")
 
+    if dispositivo_id not in APARELHOS_VALIDOS:
+        enviar_json(conexao, {"tipo": "erro", "mensagem": "Aparelho desconhecido."})
+        conexao.close()
+        return
+
     with lock:
-        dispositivos[dispositivo_id] = {"conexao": conexao, "endereco": endereco}
+        dispositivos[dispositivo_id] = {
+            "conexao": conexao,
+            "endereco": endereco,
+            "estado": primeira_msg.get("estado", "desligado"),
+            "status_formatado": primeira_msg.get("status_formatado", ""),
+        }
 
     enviar_log(f"[CONECTADO] Dispositivo {dispositivo_id} em {endereco}.")
 
@@ -66,9 +102,13 @@ def tratar_dispositivo(conexao, endereco, primeira_msg):
 
             if dados.get("tipo") == "resposta":
                 comando = dados.get("comando", "")
-                estado = dados.get("estado", "")
                 mensagem = dados.get("mensagem", "")
-                enviar_log(f"[RESPOSTA] {dispositivo_id} respondeu '{comando}': {mensagem} Estado atual = {estado}.")
+                status_formatado = dados.get("status_formatado", "")
+                with lock:
+                    if dispositivo_id in dispositivos:
+                        dispositivos[dispositivo_id]["estado"] = dados.get("estado", "")
+                        dispositivos[dispositivo_id]["status_formatado"] = status_formatado
+                enviar_log(f"[RESPOSTA] {comando}: {mensagem} {status_formatado}")
 
     except (ConnectionError, json.JSONDecodeError, OSError):
         enviar_log(f"[DESCONECTADO] Dispositivo {dispositivo_id}.")
@@ -87,7 +127,7 @@ def tratar_painel(conexao, endereco):
     enviar_log(f"[CONECTADO] Painel em {endereco}.")
     enviar_json(conexao, {"tipo": "log", "mensagem": "Painel conectado ao servidor."})
     enviar_json(conexao, {"tipo": "log", "mensagem": "Use: ligar <id>, desligar <id>, status <id> ou lista"})
-    enviar_json(conexao, {"tipo": "log", "mensagem": "Atalhos no painel: lampada-a, lampada-b, motor-g, motor-p"})
+    enviar_json(conexao, {"tipo": "log", "mensagem": "Aparelhos: alexa 🔊, cafeteira ☕, aspirador 🤖"})
 
     try:
         arquivo = conexao.makefile("r", encoding="utf-8")
@@ -101,9 +141,7 @@ def tratar_painel(conexao, endereco):
             partes = comando.split()
 
             if comando == "lista":
-                with lock:
-                    nomes = ", ".join(dispositivos.keys()) or "nenhum dispositivo conectado"
-                enviar_json(conexao, {"tipo": "log", "mensagem": f"Dispositivos: {nomes}"})
+                enviar_json(conexao, {"tipo": "log", "mensagem": montar_lista_status()})
                 continue
 
             if len(partes) != 2 or partes[0] not in ("ligar", "desligar", "status"):
@@ -111,6 +149,11 @@ def tratar_painel(conexao, endereco):
                 continue
 
             acao, dispositivo_id = partes
+
+            if dispositivo_id not in APARELHOS_VALIDOS:
+                enviar_json(conexao, {"tipo": "log", "mensagem": "Aparelho invalido. Use: alexa, cafeteira ou aspirador."})
+                continue
+
             encaminhar_para_dispositivo(dispositivo_id, acao)
 
     except (ConnectionError, json.JSONDecodeError, OSError):

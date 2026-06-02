@@ -5,11 +5,25 @@ import sys
 HOST = "127.0.0.1"
 PORTA = 5050
 
-APELIDOS_DISPOSITIVOS = {
-    "lampada-a": "lampada-amarela",
-    "lampada-b": "lampada-branca",
-    "motor-g": "motor-grande",
-    "motor-p": "motor-pequeno",
+DISPOSITIVOS = {
+    "alexa": {
+        "nome": "Alexa",
+        "emoji": "🔊",
+        "ligado": "LIGADA",
+        "desligado": "DESLIGADA",
+    },
+    "cafeteira": {
+        "nome": "Cafeteira",
+        "emoji": "☕",
+        "ligado": "LIGADA",
+        "desligado": "DESLIGADA",
+    },
+    "aspirador": {
+        "nome": "Robô Aspirador",
+        "emoji": "🤖",
+        "ligado": "LIGADO",
+        "desligado": "DESLIGADO",
+    },
 }
 
 
@@ -19,9 +33,22 @@ def enviar_json(conexao, dados):
     conexao.sendall(mensagem.encode("utf-8"))
 
 
-def nome_dispositivo(nome):
-    # Converte apelidos curtos para os nomes completos dos dispositivos.
-    return APELIDOS_DISPOSITIVOS.get(nome, nome)
+def dados_dispositivo(dispositivo_id):
+    # Busca as informacoes visuais do dispositivo escolhido.
+    return DISPOSITIVOS.get(dispositivo_id, {
+        "nome": dispositivo_id.title(),
+        "emoji": "📱",
+        "ligado": "LIGADO",
+        "desligado": "DESLIGADO",
+    })
+
+
+def linha_status(dispositivo_id, estado):
+    # Monta a linha de status com emoji, nome e estado atual.
+    dispositivo = dados_dispositivo(dispositivo_id)
+    emoji_estado = "🟢" if estado == "ligado" else "🔴"
+    texto_estado = dispositivo[estado]
+    return f"{dispositivo['emoji']} {dispositivo['nome']} -> {emoji_estado} {texto_estado}"
 
 
 def executar_comando(comando, estado):
@@ -44,18 +71,24 @@ def executar_comando(comando, estado):
 
 def main():
     # Define o nome do dispositivo usando o argumento do terminal.
-    dispositivo_id = "lampada-amarela"
+    dispositivo_id = "alexa"
     if len(sys.argv) > 1:
-        dispositivo_id = nome_dispositivo(sys.argv[1].lower())
+        dispositivo_id = sys.argv[1].lower()
 
     estado = "desligado"
+    dispositivo = dados_dispositivo(dispositivo_id)
 
     # Conecta o dispositivo ao servidor e informa seu identificador.
     cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     cliente.connect((HOST, PORTA))
-    enviar_json(cliente, {"tipo": "dispositivo", "id": dispositivo_id})
+    enviar_json(cliente, {
+        "tipo": "dispositivo",
+        "id": dispositivo_id,
+        "estado": estado,
+        "status_formatado": linha_status(dispositivo_id, estado),
+    })
 
-    print(f"Dispositivo {dispositivo_id} conectado ao servidor.")
+    print(f"{dispositivo['emoji']} {dispositivo['nome']} conectado ao servidor.")
     print("Aguardando comandos: ligar, desligar, status.")
 
     try:
@@ -69,13 +102,15 @@ def main():
 
             comando = dados.get("comando")
             estado, mensagem = executar_comando(comando, estado)
+            status_formatado = linha_status(dispositivo_id, estado)
 
-            print(f"Comando recebido: {comando} | {mensagem} Estado atual: {estado}")
+            print(f"Comando recebido: {comando} | {mensagem} {status_formatado}")
             enviar_json(cliente, {
                 "tipo": "resposta",
                 "comando": comando,
                 "estado": estado,
                 "mensagem": mensagem,
+                "status_formatado": status_formatado,
             })
 
     except (ConnectionError, json.JSONDecodeError, OSError):
